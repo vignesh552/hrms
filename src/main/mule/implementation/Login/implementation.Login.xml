@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+<sub-flow name="HRMS-LeaveTrackerEmployeeLoginSub-Flow" doc:id="687fa6bc-7ff4-4572-901c-fbf4bce27284">
+		<choice doc:name="Choice" doc:id="7464329b-e8c4-4f1f-b377-3f25958c81bd">
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<set-variable value="#[uuid()]" doc:name="Set Variable" doc:id="7b6dc202-16d2-4195-b846-be9f4f21e2b5" variableName="uuid" />
+				<os:store doc:name="Store" doc:id="7a2d2292-edaf-4262-86b5-05e456d8af84" objectStore="Object_store" key="#[vars.value.EmpId]">
+					<os:value><![CDATA[#[vars.uuid]]]></os:value>
+				</os:store>
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"The employee has logged in successfully"
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="f80e2097-c852-4508-a484-cace57daf1f0">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"There is an invalid credentials in login"
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+</mule>

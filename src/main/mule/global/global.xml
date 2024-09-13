@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="72c203ce-cb38-498a-895a-04d99df55086" >
+		<db:generic-connection url="${database.URL}" driverClassName="${database.Driverclassname}" user="${secure::database.User}" password="${secure::database.Password}" />
+	</db:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="c22a2ff1-d025-42cf-b3d6-dcb364d33a1c" file="config/${env}.yaml" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="f9f6511b-4146-4429-a865-aacc2d0e1c6e" file="config/${env}.yaml" key="${key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<os:config name="ObjectStore_Config" doc:name="ObjectStore Config" doc:id="497db34c-3d6c-4097-b861-d880f389e1b1" />
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="4a24cfc6-bf2e-4fc8-a962-6b91715aa18d" maxEntries="100" entryTtl="2" entryTtlUnit="MINUTES" config-ref="ObjectStore_Config" persistent="false"/>
+	
+	<http:listener-config name="HRMS-LeaveTracker-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="HRMS-LeaveTracker-config" api="resource::4c544563-c5b4-42da-8fa9-ac3003465b56:hrms-leavetracker:1.0.1:raml:zip:HRMS-LeaveTracker.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+	
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="f7f6fb1f-009c-435b-94e6-2565130f11c2" >
+		<email:smtp-connection host="${email.host}" user="${email.user}" password="${email.password}" port="${email.port}">
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	
+</mule>

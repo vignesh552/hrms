@@ -1,0 +1,14 @@
+http:
+   host : "0.0.0.0"
+   port : "8081"
+
+database:
+ URL : "jdbc:postgresql://155.133.26.236:5432/vigneshwar_trainee"
+ Driverclassname : "org.postgresql.Driver"
+ User : "![D7bKeGDaHgKi1AozMlGDqvqDaLvP23LC]"
+ Password : "![1ijKaJ8u+6HAu3cSuc8qjQ==]"
+email:
+ host : "smtp.gmail.com"
+ port : "25"
+ user : "vigneshsrv646@gmail.com"
+ password : "jinu btmr htwk urng"

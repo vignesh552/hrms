@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    
+	<flow name="HRMS-LeaveTracker-main">
+        <http:listener config-ref="HRMS-LeaveTracker-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="HRMS-LeaveTracker-config" />
+		<error-handler ref="global.errorError_Handler" />
+        
+    </flow>
+   	 <flow name="delete:\leave\(EmpId):HRMS-LeaveTracker-config">
+        <logger level="INFO" doc:name="Logger" doc:id="814cca0a-c5da-443d-badc-5d0d415f1fe2" message="start logger"/>
+		<set-variable value='#[{&#10;	"LeaveFrom" : attributes.queryParams.LeaveFrom,&#10;	"LeaveTo" : attributes.queryParams.LeaveTo,&#10;	"EmpId" : attributes.uriParams.EmpId&#10;}]' doc:name="" doc:id="185c98fe-f29d-43c1-b363-40e9b93a334a" variableName="value"/>
+		<try doc:name="Try" doc:id="56a5f742-9c35-4f10-a2dc-c8e289e6ba41" >
+			<os:retrieve doc:name="Retrieve" doc:id="55dc744b-b4ce-421b-8564-ed956ee0717f" key="#[vars.value.EmpId]" objectStore="Object_store"/>
+			<error-handler ref="try-block" />
+		</try>
+		<choice doc:name="Choice" doc:id="afc52fd5-a8af-47d7-b05c-7af6888b05e1" >
+			<when expression='#[payload=="Session expired please logIn again"]'>
+				<ee:transform doc:name="Transform Message" doc:id="de807cc0-e38c-4245-aab8-cfe8d66621a6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Session expired please logIn again"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="EmpId">attributes.uriParams.'EmpId'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+				<db:select doc:name="Select" doc:id="323fa410-7d40-4811-9440-2e8aa1f966f7" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT FROM LeaveDetails
+WHERE LeaveFrom >= :LeaveFrom AND LeaveTo <= :LeaveTo AND EmpId <= :EmpId;]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	"LeaveFrom" : vars.value.LeaveFrom as Date,
+	"LeaveTo" : vars.value.LeaveTo as Date,
+	"EmpId" : vars.value.EmpId
+}]]]></db:input-parameters>
+		</db:select>
+				<choice doc:name="Choice" doc:id="48eec13d-74ad-4d4a-a69d-0a11faebe7c7">
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<db:delete doc:name="Delete" doc:id="518ae9b6-fd0c-484d-b834-a47997787473" config-ref="Database_Config">
+			<db:sql><![CDATA[DELETE FROM LeaveDetails
+WHERE LeaveFrom >= :LeaveFrom AND LeaveTo <= :LeaveTo AND EmpId <= :EmpId;]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	"LeaveFrom" : vars.value.LeaveFrom as Date,
+	"LeaveTo" : vars.value.LeaveTo as Date,
+	"EmpId" : vars.value.EmpId
+}]]]></db:input-parameters>
+		</db:delete>
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"The leave application of the employees has deleted successfully"
+  ]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="d4cd1f0c-d031-47ad-a129-74c1d0b07d73" message="end logger" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="51e4498f-9e0b-4dd8-897c-d6571161d8b6">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"There is no leave registered in these dates"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+			</otherwise>
+		</choice>
+		<error-handler ref="leaverTracker.error" />
+    </flow>
+  
+    <flow name="get:\leave:HRMS-LeaveTracker-config">
+		<logger level="INFO" doc:name="Logger" doc:id="e595e76b-6566-423b-b718-302efdcb22b0" message="start logger" />
+		<set-variable value="#[attributes.queryParams.EmpId]" doc:name="Set Variable" doc:id="402367f3-4a6b-4061-8405-2361ca635175" variableName="value"/>
+		<try doc:name="Try" doc:id="a090aa6a-fd08-471f-8206-99864cd52e13" >
+			<os:retrieve doc:name="Retrieve" doc:id="f91ffcfd-bb00-467c-b158-c4ed8956b905" key="#[vars.value]" objectStore="Object_store" />
+			<error-handler ref="try-block" />
+		</try>
+		<choice doc:name="Choice" doc:id="34d3f13d-a714-493d-bf7c-982eb2bb371a" >
+			<when expression='#[payload=="Session expired please logIn again"]'>
+				<ee:transform doc:name="Transform Message" doc:id="fe168afc-f45f-4720-84ae-790af23d4aed" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Session expired please LogIn again"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:select doc:name="Select" doc:id="41024e42-a6d9-48d3-baac-3a0df1734eba" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT * FROM hrmsemp WHERE EmpId= :EmpId;]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	EmpId : vars.value
+}]]]></db:input-parameters>
+		</db:select>
+				<choice doc:name="Choice" doc:id="cd87daf5-c31b-4907-ab1c-986a1823a14b">
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<db:select doc:name="Select" doc:id="d018d6dd-e763-43e6-ad9e-fa1d4a05c004" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from leavedetails;]]></db:sql>
+		</db:select>
+				<choice doc:name="Choice" doc:id="21e1a844-b8c4-470a-82a5-f0cf2cb8b6ce">
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload groupBy $.firstname]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+				<ee:transform doc:name="Transform Message" doc:id="58b0dcd6-9424-40ce-81de-106a8fdc2384">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload mapObject ((value, key, index) -> { (key): value ++  [{
+    "TotalNumberOfleavesInDays" : value.numberofleaveindays reduce ((item, accumulator) -> accumulator + item)
+}]})]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="521d3e32-95d6-450c-aed5-cfe53bf39cce" message="#[payload]" />
+				<logger level="INFO" doc:name="Logger" doc:id="36be0d4f-291e-4821-aa71-ef970b8cb357" message="end logger" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="318d058f-5f39-4557-bd28-be5042381d5f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"There no leave has applied"
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="b202d75e-d7ad-404b-9fca-00e75e05bf00">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"Your credentials were wrong"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+			</otherwise>
+		</choice>
+		<error-handler ref="leaverTracker.error" />
+    </flow>
+    <flow name="get:\leave\(EmpId):HRMS-LeaveTracker-config">
+        <logger level="INFO" doc:name="Logger" doc:id="99472d4f-7b02-44d7-9578-f644887f319c" message="start logger"/>
+		<ee:transform doc:name="Transform Message">
+            <ee:variables>
+                <ee:set-variable variableName="EmpId">attributes.uriParams.'EmpId'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+		<try doc:name="Try" doc:id="51adea9f-c02f-4aee-b0db-ed1c16906083" >
+			<os:retrieve doc:name="Retrieve" doc:id="2b2a9e30-f8d9-4608-8d25-af5d7e4610fd" key="#[vars.EmpId]" objectStore="Object_store">
+		</os:retrieve>
+			<error-handler ref="try-block" />
+		</try>
+		<choice doc:name="Choice" doc:id="2ad5bee2-c552-4aab-a4f4-86bb85d8898e" >
+			<when expression='#[payload=="Session expired please logIn again"]'>
+				<ee:transform doc:name="Transform Message" doc:id="2da44356-17aa-4786-9a81-6ab1410f7a5b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"session expired please LogIn again"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="add19979-76af-4683-9cce-5f17b7d3cbba" message="#[payload]" />
+				<db:select doc:name="Select" doc:id="379d3789-cd9e-4a4c-a520-9f6e82b7ae49" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT * from leavedetails WHERE EmpId= :EmpId]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	EmpId : vars.EmpId
+}]]]></db:input-parameters>
+		</db:select>
+				<choice doc:name="Choice" doc:id="149303f6-2101-45cc-9799-2e0ab5b24a25">
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<logger level="INFO" doc:name="Logger" doc:id="142720eb-3ef4-4686-9f4a-c0eb8f1b8fa3" message="#[payload]" />
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="5ccc59a8-2d99-4811-ba27-3e8a4ca6d2e6" message="end logger" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="1bff612a-1d58-4529-8a33-6a053de98c43">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"There is no leave applied"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+			</otherwise>
+		</choice>
+		<error-handler ref="leaverTracker.error" />
+    </flow>
+    	<flow name="post:\employees:application\json:HRMS-LeaveTracker-config">
+        <logger level="INFO" doc:name="Logger" doc:id="175fb329-e3d2-4638-beb4-b82aa4918c70" message="#[flow.name]"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="83deab8d-3524-4397-ad7d-4ac5f836a21a" variableName="value"/>
+		<db:select doc:name="Select" doc:id="a9ec1bee-077f-4528-aacf-63d6f1908512" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM hrmsemp WHERE Email= :Email;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	Email : vars.value.Email
+}]]]></db:input-parameters>
+		</db:select>
+		<flow-ref doc:name="Flow Reference" doc:id="255c5924-ee80-4e42-916f-e97baae16ba9" name="HRMS-LeaveTrackerSub_Flow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="5e03799f-0ef7-4378-a8b8-85e40a17812b" message="End logger" />
+		<error-handler ref="leaverTracker.error" />
+    </flow>
+     <sub-flow name="HRMS-LeaveTrackerSub_Flow" doc:id="a70cd082-a463-44df-883f-39aa459e7244" >
+		<choice doc:name="Choice" doc:id="41767174-736d-4ec9-8155-4252e4586417">
+			<when expression="#[sizeOf(payload)==0]">
+				<db:insert doc:name="Insert" doc:id="7af6b32d-f985-4b5d-a6a4-472345df9426" config-ref="Database_Config">
+			<db:sql><![CDATA[INSERT INTO hrmsemp (FirstName,LastName, Email, Password)
+VALUES (:FirstName,:LastName,:Email,:Password);]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	FirstName : vars.value.FirstName,
+	LastName : vars.value.LastName,
+	Email : vars.value.Email,
+	Password : vars.value.Password
+}]]]></db:input-parameters>
+		</db:insert>
+				<db:select doc:name="Select" doc:id="00323f5c-e221-4ffb-96f1-2dd040722eb2" config-ref="Database_Config" target="emp">
+			<db:sql><![CDATA[SELECT EmpId
+FROM hrmsemp
+WHERE Email = :Email;
+]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	Email : vars.value.Email
+}]]]></db:input-parameters>
+		</db:select>
+				<!-- [STUDIO:"Send"]<email:send doc:name="Send" doc:id="661f32c9-1c22-416a-a8e6-5825adef0dd3" config-ref="Email_SMTP" fromAddress="vigneshsrv646@gmail.com" subject="EmpId">
+			<email:to-addresses>
+				<email:to-address value="#[vars.value.Email&#93;" />
+			</email:to-addresses>
+			<email:body contentType="text/plain">
+				<email:content><![CDATA[#[%dw 2.0
+output application/json
+&#45;&#45;-
+"Congrats You has successfully Registered Your EmpId is" : vars.emp[0&#93;.empid&#93;&#93;&#93;></email:content>
+			</email:body>
+		</email:send> [STUDIO] -->
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+"The employee details has been registered successfully"
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="938f392c-4e71-491e-a7f4-c358df86e5ab">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"EmailId already exists"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="post:\leave:application\json:HRMS-LeaveTracker-config">
+        <logger level="ERROR" doc:name="Logger" doc:id="fb4440b4-b956-4108-beab-e99900a39e9b" message="Start logger"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="71b1d34f-1fd2-457e-95ce-3cee794cd703" variableName="value"/>
+		<try doc:name="Try" doc:id="4d786b42-428a-43b8-9863-9d480bb5d9fb" >
+			<os:retrieve doc:name="Retrieve" doc:id="b943d422-2111-4864-bd0c-70b3ba1e3895" key="#[vars.value.EmpId]" objectStore="Object_store" />
+			<error-handler ref="try-block" />
+		</try>
+		<choice doc:name="Choice" doc:id="e170abdd-b1a5-4b9e-9629-f2c7108b8043" >
+			<when expression='#[payload=="Session expired please logIn again"]'>
+				<ee:transform doc:name="Transform Message" doc:id="87cdb94b-d5c4-42a6-a781-bb87f911ae8c" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Session expired please logIn again"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="c87e56c6-95da-4724-ae5a-1e9c58aadd34" message="#[payload]" />
+				<db:select doc:name="Select" doc:id="3adeeaa5-4ce9-43ef-8c26-5481c50546e4" config-ref="Database_Config">
+					<db:sql><![CDATA[SELECT * FROM hrmsemp WHERE FirstName= :FirstName AND EmpId= :EmpId;]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+	FirstName : vars.value.FirstName,
+	EmpId : vars.value.EmpId
+	
+}]]]></db:input-parameters>
+				</db:select>
+				<choice doc:name="Choice" doc:id="340d7ef6-c851-471f-8d8a-6b9e0e82432a">
+					<when expression="#[sizeOf(payload)&gt;0]">
+						<db:select doc:name="Select" doc:id="1cd9760b-d1f4-41ef-99c8-202e130cd01b" config-ref="Database_Config">
+							<db:sql><![CDATA[
+SELECT * FROM leavedetails 
+WHERE LeaveFrom= :LeaveFrom 
+  AND LeaveTo= :LeaveTo
+  AND EmpId= :EmpId;
+]]></db:sql>
+							<db:input-parameters><![CDATA[#[{
+	LeaveFrom : vars.value.LeaveFrom as Date,
+	LeaveTo : vars.value.LeaveTo as Date,
+	EmpId : vars.value.EmpId
+}]]]></db:input-parameters>
+						</db:select>
+						<choice doc:name="Choice" doc:id="2b8c6066-0e93-4c02-9d58-348fa44feeff">
+							<when expression="#[sizeOf(payload)==0]">
+								<db:insert doc:name="Insert" doc:id="404266a8-b2cd-4269-adbc-cba965e1b4a2" config-ref="Database_Config">
+			<db:sql><![CDATA[INSERT INTO LeaveDetails (EmpID, FirstName, LeaveFrom, LeaveTo, Reason)
+VALUES (:EmpID,:Name,:LeaveFrom,:LeaveTo,:Reason);
+]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	EmpID : vars.value.EmpId,
+	Name : vars.value.FirstName,
+	LeaveFrom : vars.value.LeaveFrom as Date,
+	LeaveTo : vars.value.LeaveTo as Date,
+	Reason : vars.value.Reason
+}]]]></db:input-parameters>
+		</db:insert>
+								<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+ "The Employee leave details has been registered successfully"
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+								<logger level="INFO" doc:name="Logger" doc:id="0c6997f1-77ae-4417-b4be-b4bdfec898a1" message="End logger" />
+							</when>
+							<otherwise>
+								<ee:transform doc:name="Transform Message" doc:id="ff05f779-ef86-4700-985b-b5b690f649b8">
+									<ee:message>
+										<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"You have already registered leave in these dates"]]></ee:set-payload>
+									</ee:message>
+								</ee:transform>
+							</otherwise>
+						</choice>
+					</when>
+					<otherwise>
+						<ee:transform doc:name="Transform Message" doc:id="6ba3054e-c9c1-44bb-ac62-1d92ffbdfac4">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+"Invalid name"]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			</otherwise>
+		</choice>
+		<error-handler ref="leaverTracker.error" />
+		
+    </flow>
+     <flow name="post:\employees\login:application\json:HRMS-LeaveTracker-config">
+        <logger level="INFO" doc:name="Logger" doc:id="8702ad6d-dcfd-45e4-8d01-676f1a32c140" message="start logger"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="104f6ba6-81d6-41ea-a02d-2ca288c1d6db" variableName="value"/>
+		<ee:transform doc:name="Transform Message" doc:id="9ac2fbb2-2b92-4c2d-bf53-426ef60057c5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:select doc:name="Select" doc:id="af36c881-9909-4e3b-bafc-db10a78914e8" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * FROM hrmsemp WHERE  empid= :empid AND password= :password;]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	"empid" : payload.EmpId,
+	"password" : payload.Password
+}]]]></db:input-parameters>
+		</db:select>
+		<flow-ref doc:name="Flow Reference" doc:id="6785fa2d-e1d2-4bb8-843c-db07288281e3" name="HRMS-LeaveTrackerEmployeeLoginSub-Flow"/>
+		<logger level="INFO" doc:name="Logger" doc:id="924552b8-92ae-4928-9747-caa9085512a9" message="end  logger"/>
+		<error-handler ref="leaverTracker.error" />
+    </flow>
+	
+</mule>
