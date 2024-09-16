@@ -283,7 +283,7 @@ output application/json
 output application/json
 ---
 
-"The employee details has been registered successfully"
+"The employee details has registered successfully"
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
@@ -362,7 +362,7 @@ VALUES (:EmpID,:Name,:LeaveFrom,:LeaveTo,:Reason);
                 <ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
- "The Employee leave details has been registered successfully"
+ "The Employee leave details has registered successfully"
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
