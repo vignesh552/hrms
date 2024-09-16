@@ -115,8 +115,7 @@ output application/json
 ---
 {
 	"errorType" : error.errorType.identifier,
-	"errorDescription" : error.description,
-	"errorDetailedDescription" : error.detailedDescription
+	"errorDescription" : error.description
 }
 ]]></ee:set-payload>
                     </ee:message>
