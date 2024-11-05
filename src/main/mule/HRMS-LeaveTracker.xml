@@ -274,7 +274,7 @@ WHERE Email = :Email;
 				<email:content><![CDATA[#[%dw 2.0
 output application/json
 &#45;&#45;-
-"Congrats You has successfully Registered Your EmpId is" : vars.emp[0&#93;.empid&#93;&#93;&#93;></email:content>
+"Congrats You have successfully Registered Your EmpId is" : vars.emp[0&#93;.empid&#93;&#93;&#93;></email:content>
 			</email:body>
 		</email:send> [STUDIO] -->
 				<ee:transform doc:name="Transform Message">
@@ -283,7 +283,7 @@ output application/json
 output application/json
 ---
 
-"The employee details has registered successfully"
+"The employee details has registered successfully!!!!!!!!!!!!!!!!!!!"
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
@@ -350,8 +350,8 @@ WHERE LeaveFrom= :LeaveFrom
 VALUES (:EmpID,:Name,:LeaveFrom,:LeaveTo,:Reason);
 ]]></db:sql>
 			<db:input-parameters><![CDATA[#[{
-	EmpID : vars.value.EmpId,
-	Name : vars.value.FirstName,
+	EmpID : vars.value.EmpId default "",
+	Name : vars.value.FirstName default "",
 	LeaveFrom : vars.value.LeaveFrom as Date,
 	LeaveTo : vars.value.LeaveTo as Date,
 	Reason : vars.value.Reason
