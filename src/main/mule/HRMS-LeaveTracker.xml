@@ -98,7 +98,7 @@ output application/json
 			<os:retrieve doc:name="Retrieve" doc:id="f91ffcfd-bb00-467c-b158-c4ed8956b905" key="#[vars.value]" objectStore="Object_store" />
 			<error-handler ref="try-block" />
 		</try>
-		<choice doc:name="Choice" doc:id="34d3f13d-a714-493d-bf7c-982eb2bb371a" >
+		<choice doc:name="Choiice" doc:id="34d3f13d-a714-493d-bf7c-982eb2bb371a" >
 			<when expression='#[payload=="Session expired please logIn again"]'>
 				<ee:transform doc:name="Transform Message" doc:id="fe168afc-f45f-4720-84ae-790af23d4aed" >
 					<ee:message >
