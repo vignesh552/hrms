@@ -69,7 +69,7 @@ WHERE LeaveFrom >= :LeaveFrom AND LeaveTo <= :LeaveTo AND EmpId <= :EmpId;]]></d
                 <ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
-"The leave application of the employees has deleted successfully"
+"deleted successfully"
   ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
